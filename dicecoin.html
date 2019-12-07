@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<script>
+    // b58 library from https://gist.github.com/diafygi/90a3e80ca1c2793220e5/
+    const MAP = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    var to_b58 = function (
+        B,            //Uint8Array raw byte input
+        A             //Base58 characters (i.e. "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
+    ) {
+        var d = [],   //the array for storing the stream of base58 digits
+            s = "",   //the result string variable that will be returned
+            i,        //the iterator variable for the byte input
+            j,        //the iterator variable for the base58 digit array (d)
+            c,        //the carry amount variable that is used to overflow from the current base58 digit to the next base58 digit
+            n;        //a temporary placeholder variable for the current base58 digit
+        for (i in B) { //loop through each byte in the input stream
+            j = 0,                           //reset the base58 digit iterator
+                c = B[i];                        //set the initial carry amount equal to the current byte amount
+            s += c || s.length ^ i ? "" : 1; //prepend the result string with a "1" (0 in base58) if the byte stream is zero and non-zero bytes haven't been seen yet (to ensure correct decode length)
+            while (j in d || c) {             //start looping through the digits until there are no more digits and no carry amount
+                n = d[j];                    //set the placeholder for the current base58 digit
+                n = n ? n * 256 + c : c;     //shift the current base58 one byte and add the carry amount (or just add the carry amount if this is a new digit)
+                c = n / 58 | 0;              //find the new carry amount (floored integer of current digit divided by 58)
+                d[j] = n % 58;               //reset the current base58 digit to the remainder (the carry amount will pass on the overflow)
+                j++                          //iterate to the next base58 digit
+            }
+        }
+        while (j--)        //since the base58 digits are backwards, loop through them in reverse order
+            s += A[d[j]]; //lookup the character associated with each base58 digit
+        return s          //return the final base58 string
+    }
+
+    function getUrlVars() {
+        var vars = {};
+        var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function (m, key, value) {
+            vars[key] = value;
+        });
+        return vars;
+    }
+
+    Array.prototype.flatMap = function (f) {
+        return this.reduce((acc, x) => acc.concat(f(x)), [])
+    }
+    const combinations = (choices, n = 1) =>
+        n === 0
+            ? [[]]
+            : combinations(choices, n - 1).flatMap(comb =>
+                choices.map(c => [c, ...comb]));
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var urlVars = getUrlVars();
+        if (Boolean(6) && Boolean(urlVars.dice_number)) {
+            var resultBin = '';
+            var readyBits;
+
+            var maindiv = document.getElementById('main').hidden = false;
+            var paramsdiv = document.getElementById('params').hidden = true;
+
+            var diceCombos = combinations(['1', '2', '3', '4', '5', '6'], urlVars.dice_number);
+
+            // Set count of dice entries
+            var dice = document.getElementById('dice');
+            for (var i = 1; urlVars.dice_number >= i; i++) {
+                dice.innerHTML += '<p>Dice #' + i + ': <input class="number_input" type="number" min="1" max="6" id="dice' + i + '" result"></input></p>'
+            }
+
+            // Get roll bits count
+            var rollCombos;
+            var rollBits = function () {
+                rollCombos = Math.pow(6, urlVars.dice_number);
+                var rollBitsExp2, rollBits;
+                for (var i = 1; rollCombos >= Math.pow(2, i); i++) {
+                    rollBitsExp2 = Math.pow(2, i);
+                    rollBits = i;
+                }
+                return rollBits;
+            }();
+
+            dice.innerHTML += '<button id="submit_dice">Submit</button>';
+            document.getElementById('submit_dice').addEventListener('click', function () {
+                var result = document.getElementById('result');
+                var diceRoll = [];
+                for (var i = 1; i <= urlVars.dice_number; i++) {
+                    diceRoll.push(document.getElementById('dice' + i).value)
+                }
+                if (Math.min.apply(null, diceRoll) >= 1 && Math.max.apply(null, diceRoll) <= 6 && !('' in diceRoll)) {
+                    for (var i = 1; i <= urlVars.dice_number; i++) {
+                        document.getElementById('dice' + i).value = '';
+                    }
+
+                    var diceNumber;
+                    for (var i = 0; i <= diceCombos.length - 1; i++) {
+                        if (diceRoll[0] == diceCombos[i][0]
+                            && diceRoll[1] == diceCombos[i][1]
+                            && diceRoll[2] == diceCombos[i][2]
+                            && diceRoll[3] == diceCombos[i][3]) { diceNumber = i };
+                    }
+
+                    if (diceNumber >= Math.pow(2, rollBits)) {
+                        result.innerHTML = '<p><div style="color: green">Your roll value is larger than 2^' + rollBits + '. It is normal but you must reroll.</div></p>';
+                    } else {
+
+                        // Get binary result
+                        var diceBin = diceNumber.toString(2);
+                        while (diceBin.length < rollBits) {
+                            diceBin = '0' + diceBin;
+                        }
+
+                        // Increase progress
+                        var gen_progress = document.getElementById('gen_progress');
+                        var readyBits = gen_progress.value;
+                        if (readyBits + rollBits < 256) {
+                            var generated_bits = document.getElementById('generated_bits');
+                            readyBits = readyBits + rollBits;
+                            gen_progress.value = readyBits;
+                            generated_bits.textContent = readyBits;
+
+                            resultBin += diceBin;
+                            result.innerHTML = '<p><div style="color: green">Roll submitted.</div></p>';
+                        } else {
+                            resultBin += diceBin.slice(rollBits - (256 - resultBin.length));
+                            var binArray = resultBin.match(/.{1,8}/g);
+                            for (var i = 0; binArray.length >= i; i++) {
+                                if (binArray[i]) binArray[i] = parseInt(binArray[i], 2);
+                            }
+                            var uint8Array = new Uint8Array(binArray);
+                            console.log(uint8Array);
+                            if (!alert('Your private key: ' + to_b58(uint8Array, MAP))) { window.location.reload(); };
+                        }
+                    }
+                } else {
+                    result.innerHTML = '<p><div style="color: crimson">Error!</div></p>';
+                }
+            });
+        }
+    });
+</script>
+
+<style src="text/css">
+    h2 {
+        font-family: Verdana, Geneva, Tahoma, sans-serif;
+    }
+
+    .number_input {
+        width: 4ch;
+    }
+</style>
+
+<title>Privkey generator</title>
+
+<header>
+    <h2>Bitcoin private key generator using dice for entropy</h2>
+</header>
+
+<body>
+    <div id="params">
+        <form>
+            <p>Number of dice: <input class="number_input" name="dice_number" value="2" type="number" min="1"
+                    max="4"></input></p>
+            <input type="submit" value="Let's start!"></input>
+        </form>
+    </div>
+    <div id="main" hidden>
+        <p>You have generated <label id="generated_bits">0</label> bits of 256.</p>
+        <progress id="gen_progress" value=0 max=256></progress>
+        <p>
+            <div style="color: crimson;">Warning!</div> For 100% quality of entropy please mark every your dice and
+            enter results in valid order.
+        </p>
+        <div id="dice"></div>
+        <div id="result"></div>
+    </div>
+</body>
+
+<footer>
+    <p> Platofff 2019<br>v0.0.1</p>
+</footer>
