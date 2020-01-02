@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<meta charset="utf-8">
+<meta charset='utf-8'>
 
 <script>
     // b58 library from https://gist.github.com/diafygi/90a3e80ca1c2793220e5/
-    const MAP = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    const MAP = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     var to_b58 = function (
         B,            //Uint8Array raw byte input
         A             //Base58 characters (i.e. "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
     ) {
         var d = [],   //the array for storing the stream of base58 digits
-            s = "",   //the result string variable that will be returned
+            s = '',   //the result string variable that will be returned
             i,        //the iterator variable for the byte input
             j,        //the iterator variable for the base58 digit array (d)
             c,        //the carry amount variable that is used to overflow from the current base58 digit to the next base58 digit
@@ -17,7 +17,7 @@
         for (i in B) { //loop through each byte in the input stream
             j = 0,                           //reset the base58 digit iterator
                 c = B[i];                        //set the initial carry amount equal to the current byte amount
-            s += c || s.length ^ i ? "" : 1; //prepend the result string with a "1" (0 in base58) if the byte stream is zero and non-zero bytes haven't been seen yet (to ensure correct decode length)
+            s += c || s.length ^ i ? '' : 1; //prepend the result string with a "1" (0 in base58) if the byte stream is zero and non-zero bytes haven't been seen yet (to ensure correct decode length)
             while (j in d || c) {             //start looping through the digits until there are no more digits and no carry amount
                 n = d[j];                    //set the placeholder for the current base58 digit
                 n = n ? n * 256 + c : c;     //shift the current base58 one byte and add the carry amount (or just add the carry amount if this is a new digit)
@@ -31,9 +31,26 @@
         return s          //return the final base58 string
     }
 
-    function getUrlVars() {
-        var vars = {};
-        var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function (m, key, value) {
+    function hexToArrayBuffer(hex) {
+        let view = new Uint8Array(hex.length / 2)
+
+        for (let i = 0; i < hex.length; i += 2) {
+            view[i / 2] = parseInt(hex.substring(i, i + 2), 16)
+        }
+
+        return view.buffer
+    }
+
+    function bufToHex(buffer) { // buffer is an ArrayBuffer
+        return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+    }
+
+    const uint8ArrayfromHex = hex =>
+        new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+
+    function getUrlvars() {
+        let vars = {};
+        let parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, (m, key, value) => {
             vars[key] = value;
         });
         return vars;
@@ -48,29 +65,29 @@
             : combinations(choices, n - 1).flatMap(comb =>
                 choices.map(c => [c, ...comb]));
 
-    document.addEventListener('DOMContentLoaded', function () {
-        var urlVars = getUrlVars();
-        if (Boolean(6) && Boolean(urlVars.dice_number)) {
-            var resultBin = '';
-            var readyBits;
+    document.addEventListener('DOMContentLoaded', () => {
+        const urlvars = getUrlvars();
+        if (Boolean(6) && Boolean(urlvars.dice_number)) {
+            let resultBin = '';
+            let readyBits;
 
-            var maindiv = document.getElementById('main').hidden = false;
-            var paramsdiv = document.getElementById('params').hidden = true;
+            let maindiv = document.getElementById('main').hidden = false;
+            let paramsdiv = document.getElementById('params').hidden = true;
 
-            var diceCombos = combinations(['1', '2', '3', '4', '5', '6'], urlVars.dice_number);
+            const diceCombos = combinations(['1', '2', '3', '4', '5', '6'], urlvars.dice_number);
 
             // Set count of dice entries
-            var dice = document.getElementById('dice');
-            for (var i = 1; urlVars.dice_number >= i; i++) {
+            let dice = document.getElementById('dice');
+            for (let i = 1; urlvars.dice_number >= i; i++) {
                 dice.innerHTML += '<p>Dice #' + i + ': <input class="number_input" type="number" min="1" max="6" id="dice' + i + '" result"></input></p>'
             }
 
             // Get roll bits count
-            var rollCombos;
-            var rollBits = function () {
-                rollCombos = Math.pow(6, urlVars.dice_number);
-                var rollBitsExp2, rollBits;
-                for (var i = 1; rollCombos >= Math.pow(2, i); i++) {
+            let rollCombos;
+            let rollBits = function () {
+                rollCombos = Math.pow(6, urlvars.dice_number);
+                let rollBitsExp2, rollBits;
+                for (let i = 1; rollCombos >= Math.pow(2, i); i++) {
                     rollBitsExp2 = Math.pow(2, i);
                     rollBits = i;
                 }
@@ -79,39 +96,48 @@
 
             dice.innerHTML += '<button id="submit_dice">Submit</button>';
             document.getElementById('submit_dice').addEventListener('click', function () {
-                var result = document.getElementById('result');
-                var diceRoll = [];
-                for (var i = 1; i <= urlVars.dice_number; i++) {
+                let result = document.getElementById('result');
+                let diceRoll = [];
+                for (let i = 1; i <= urlvars.dice_number; i++) {
                     diceRoll.push(document.getElementById('dice' + i).value)
                 }
                 if (Math.min.apply(null, diceRoll) >= 1 && Math.max.apply(null, diceRoll) <= 6 && !('' in diceRoll)) {
-                    for (var i = 1; i <= urlVars.dice_number; i++) {
+                    for (let i = 1; i <= urlvars.dice_number; i++) {
                         document.getElementById('dice' + i).value = '';
                     }
 
-                    var diceNumber;
-                    for (var i = 0; i <= diceCombos.length - 1; i++) {
+                    let diceNumber;
+                    for (let i = 0; i <= diceCombos.length - 1; i++) {
                         if (diceRoll[0] == diceCombos[i][0]
                             && diceRoll[1] == diceCombos[i][1]
                             && diceRoll[2] == diceCombos[i][2]
-                            && diceRoll[3] == diceCombos[i][3]) { diceNumber = i };
+                            && diceRoll[3] == diceCombos[i][3]) { diceNumber = i; break; };
                     }
 
                     if (diceNumber >= Math.pow(2, rollBits)) {
-                        result.innerHTML = '<p><div style="color: green">Your roll value is larger than 2^' + rollBits + '. It is normal but you must reroll.</div></p>';
+                        let generated_bits = document.getElementById('generated_bits');
+                        let gen_progress = document.getElementById('gen_progress');
+                        let readyBits = gen_progress.value;
+
+                        resultBin += diceNumber % 2;
+                        readyBits = readyBits + 1;
+                        gen_progress.value = readyBits;
+                        generated_bits.textContent = readyBits;
+
+                        result.innerHTML = '<p><div style="color: green">Your roll value is larger than 2^' + rollBits + '. 1 bit (even, odd) submitted.</div></p>';
                     } else {
 
                         // Get binary result
-                        var diceBin = diceNumber.toString(2);
+                        let diceBin = diceNumber.toString(2);
                         while (diceBin.length < rollBits) {
                             diceBin = '0' + diceBin;
                         }
 
                         // Increase progress
-                        var gen_progress = document.getElementById('gen_progress');
-                        var readyBits = gen_progress.value;
+                        let gen_progress = document.getElementById('gen_progress');
+                        let readyBits = gen_progress.value;
                         if (readyBits + rollBits < 256) {
-                            var generated_bits = document.getElementById('generated_bits');
+                            let generated_bits = document.getElementById('generated_bits');
                             readyBits = readyBits + rollBits;
                             gen_progress.value = readyBits;
                             generated_bits.textContent = readyBits;
@@ -120,13 +146,51 @@
                             result.innerHTML = '<p><div style="color: green">Roll submitted.</div></p>';
                         } else {
                             resultBin += diceBin.slice(rollBits - (256 - resultBin.length));
-                            var binArray = resultBin.match(/.{1,8}/g);
-                            for (var i = 0; binArray.length >= i; i++) {
+
+                            let binArray = resultBin.match(/.{1,8}/g);
+                            for (let i = 0; binArray.length >= i; i++) {
                                 if (binArray[i]) binArray[i] = parseInt(binArray[i], 2);
                             }
-                            var uint8Array = new Uint8Array(binArray);
-                            console.log(uint8Array);
-                            if (!alert('Your private key: ' + to_b58(uint8Array, MAP))) { window.location.reload(); };
+
+                            hex = '80';
+                            for (let i = 0; i < binArray.length; i++) {
+                                newHex = binArray[i].toString(16);
+                                if (newHex.length < 2) newHex = '0' + newHex;
+                                hex += newHex;
+                            }
+
+                            while (hex.length < 66) hex += '0';
+
+                            hex +='01';
+
+                            let bArray, checksum;
+
+                            async function dualSha256(hex) {
+                                let hash1, hash2;
+                                await crypto.subtle.digest('SHA-256', hexToArrayBuffer(hex)).then((res) => {
+                                    hash1 = bufToHex(res);
+                                });
+                                await crypto.subtle.digest('SHA-256', hexToArrayBuffer(hash1)).then((res) => {
+                                    hash2 = bufToHex(res);
+                                });
+
+                                return hash2.slice(null, 8)
+                            }
+
+                            dualSha256(hex).then((checksum) => {
+                                const rArray = uint8ArrayfromHex(hex);
+                                const cArray = uint8ArrayfromHex(checksum);
+
+                                console.log(cArray);
+
+                                let fArray = new Uint8Array(rArray.length + cArray.length);
+                                fArray.set(rArray);
+                                fArray.set(cArray, rArray.length);
+
+                                if (!alert('Your private key in WIF: ' + to_b58(fArray, MAP) + '\nHex: ' + hex.slice(2, -2))) { window.location.reload(); };
+
+                            });
+
                         }
                     }
                 } else {
@@ -174,5 +238,5 @@
 </body>
 
 <footer>
-    <p> Platofff 2019<br>v0.0.1</p>
+    <p> Platofff 2019<br>v0.0.2</p>
 </footer>
